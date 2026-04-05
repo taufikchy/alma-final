@@ -5,7 +5,7 @@ import { useState } from 'react';
 import Layout from '@/components/Layout';
 import { Form, Button, Alert, Card, InputGroup } from 'react-bootstrap';
 import { signIn } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
+// useRouter dihapus karena kita ganti pakai window.location
 
 const LoginPage = () => {
   const [username, setUsername] = useState('');
@@ -13,7 +13,6 @@ const LoginPage = () => {
   const [role, setRole] = useState('SUPER_ADMIN');
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,15 +28,19 @@ const LoginPage = () => {
     if (result?.error) {
       setError('Login gagal. Periksa username, password, dan peran Anda.');
     } else {
+      // Tentukan URL tujuan secara dinamis berdasarkan role
+      let targetUrl = '/';
       if (role === 'MIDWIFE') {
-        router.push('/midwife/dashboard');
+        targetUrl = '/midwife/dashboard';
       } else if (role === 'PATIENT') {
-        router.push('/patient/dashboard');
+        targetUrl = '/patient/dashboard';
       } else if (role === 'SUPER_ADMIN') {
-        router.push('/superadmin/dashboard');
-      } else {
-        router.push('/');
+        targetUrl = '/superadmin/dashboard';
       }
+
+      // MODIFIKASI DISINI: Memaksa refresh halaman agar session NextAuth nempel di HP
+      // Ini jauh lebih stabil untuk koneksi mobile/Vercel daripada router.push
+      window.location.href = targetUrl;
     }
   };
 
