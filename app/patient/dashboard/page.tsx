@@ -5,10 +5,11 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import Layout from '@/components/Layout';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Container, Row, Col, Card, Alert, Spinner, Badge } from 'react-bootstrap';
+import { Container, Row, Col, Card, Alert, Spinner, Badge, Button } from 'react-bootstrap';
 import DailyCheckForm from '@/components/DailyCheckForm';
 import DailyCheckHistory from '@/components/DailyCheckHistory';
-import { calculateGestationalAge, formatGestationalAge } from '@/lib/gestationalAge';
+import { calculateGestationalAge } from '@/lib/gestationalAge';
+import oneSignalService from '@/lib/onesignal';
 
 interface PatientDetails {
   id: string;
@@ -24,6 +25,7 @@ interface PatientDetails {
   lastMenstrualPeriod: string;
   estimatedDueDate: string;
   lastHemoglobin: number;
+  midwifeId?: string;
   midwife: {
     name: string;
   };
@@ -59,6 +61,7 @@ const PatientDashboardPage = () => {
   const [showReminder, setShowReminder] = useState(false);
   const [alreadyCheckedToday, setAlreadyCheckedToday] = useState(false);
   const [isAlarmPlaying, setIsAlarmPlaying] = useState(false);
+  const [notificationEnabled, setNotificationEnabled] = useState(false);
   const hasPlayedRef = useRef(false);
 
   const checkTodaySubmission = useCallback((checks?: { date: string }[]) => {
@@ -247,17 +250,43 @@ const PatientDashboardPage = () => {
   }, []);
 
   useEffect(() => {
-    if (status === 'authenticated' && session?.user?.role === 'PATIENT' && patientDetails?.id) {
-      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
-          type: 'SCHEDULE_ALARM',
-          patientId: patientDetails.id,
-          checkTime: 19,
-          snoozeInterval: 10 * 60 * 1000,
-        });
-      }
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'SCHEDULE_ALARM',
+        patientId: patientDetails?.id,
+        checkTime: 19,
+        snoozeInterval: 10 * 60 * 1000,
+      });
     }
   }, [session, status, patientDetails]);
+
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user?.role === 'PATIENT' && patientDetails?.id) {
+      oneSignalService.init().then(async () => {
+        const isEnabled = await oneSignalService.isSubscribed();
+        setNotificationEnabled(isEnabled);
+        if (isEnabled && patientDetails?.id) {
+          await oneSignalService.setExternalUserId(patientDetails.id);
+          await oneSignalService.sendTags({
+            patientId: patientDetails.id,
+            midwifeId: patientDetails.midwifeId || '',
+          });
+        }
+      });
+    }
+  }, [session, status, patientDetails]);
+
+  const handleEnableNotifications = async () => {
+    const granted = await oneSignalService.requestPermission();
+    if (granted && patientDetails?.id) {
+      await oneSignalService.setExternalUserId(patientDetails.id);
+      await oneSignalService.sendTags({
+        patientId: patientDetails.id,
+        midwifeId: patientDetails.midwifeId || '',
+      });
+      setNotificationEnabled(true);
+    }
+  };
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
@@ -498,6 +527,46 @@ const PatientDashboardPage = () => {
               )}
             </Card.Body>
           </Card>
+
+          {!notificationEnabled && (
+            <Card className="mb-4 border-0 shadow-sm" style={{ backgroundColor: '#FFF3CD' }}>
+              <Card.Body className="d-flex align-items-center justify-content-between flex-wrap gap-3 py-3">
+                <div className="d-flex align-items-center gap-3">
+                  <i className="bi bi-bell-fill fs-3 text-warning"></i>
+                  <div>
+                    <strong>Aktifkan Notifikasi</strong>
+                    <p className="mb-0 text-muted small">Dapatkan pengingat minum TTD setiap hari pukul 19:00</p>
+                  </div>
+                </div>
+                <Button
+                  variant="warning"
+                  className="fw-bold"
+                  onClick={handleEnableNotifications}
+                >
+                  <i className="bi bi-bell me-2"></i>
+                  Aktifkan
+                </Button>
+              </Card.Body>
+            </Card>
+          )}
+
+          {notificationEnabled && (
+            <Card className="mb-4 border-0 shadow-sm" style={{ backgroundColor: '#D4EDDA' }}>
+              <Card.Body className="d-flex align-items-center justify-content-between flex-wrap gap-3 py-3">
+                <div className="d-flex align-items-center gap-3">
+                  <i className="bi bi-bell-check-fill fs-3 text-success"></i>
+                  <div>
+                    <strong>Notifikasi Aktif</strong>
+                    <p className="mb-0 text-muted small">Pengingat akan muncul setiap hari pukul 19:00</p>
+                  </div>
+                </div>
+                <Badge bg="success" className="px-3 py-2">
+                  <i className="bi bi-check-circle me-1"></i>
+                  Enabled
+                </Badge>
+              </Card.Body>
+            </Card>
+          )}
 
           <Row className="g-4 mb-4">
             <Col md={6}>

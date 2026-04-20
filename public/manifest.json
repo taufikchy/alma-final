@@ -1,0 +1,21 @@
+{
+  "name": "ALMA - Alarm Lawan Anemia",
+  "short_name": "ALMA",
+  "description": "Aplikasi pengingat minum Tablet Tambah Darah untuk ibu hamil",
+  "start_url": "/patient/dashboard",
+  "display": "standalone",
+  "background_color": "#FFF5F8",
+  "theme_color": "#2E7D32",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
