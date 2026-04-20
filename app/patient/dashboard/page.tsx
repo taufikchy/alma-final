@@ -231,10 +231,48 @@ const PatientDashboardPage = () => {
   }, []);
 
   useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').then((registration) => {
+        console.log('Service Worker registered with scope:', registration.scope);
+      }).catch((error) => {
+        console.error('Service Worker registration failed:', error);
+      });
+    }
+  }, []);
+
+  useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission();
     }
   }, []);
+
+  useEffect(() => {
+    if (status === 'authenticated' && session?.user?.role === 'PATIENT' && patientDetails?.id) {
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'SCHEDULE_ALARM',
+          patientId: patientDetails.id,
+          checkTime: 19,
+          snoozeInterval: 10 * 60 * 1000,
+        });
+      }
+    }
+  }, [session, status, patientDetails]);
+
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'ALARM_TRIGGERED') {
+          setShowReminder(true);
+          playNotificationSound();
+          setIsAlarmPlaying(true);
+        }
+        if (event.data && event.data.type === 'NOTIFICATION_CLICKED') {
+          router.push('/patient/dashboard');
+        }
+      });
+    }
+  }, [playNotificationSound, router]);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -382,6 +420,13 @@ const PatientDashboardPage = () => {
                       audioRef.current = null;
                       playPromiseRef.current = null;
                       alarmDismissedByUserRef.current = true;
+
+                      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                        navigator.serviceWorker.controller.postMessage({
+                          type: 'SNOOZE_ALARM',
+                          snoozeInterval: 10 * 60 * 1000,
+                        });
+                      }
 
                       setTimeout(() => {
                         if (!alreadyCheckedToday && session?.user?.role === 'PATIENT') {

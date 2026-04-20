@@ -145,6 +145,16 @@ const LoginPage = () => {
                       </div>
                     </Form.Group>
 
+                    <Form.Group className="mb-3">
+                      <Form.Check
+                        type="checkbox"
+                        label="Ingat saya"
+                        checked={rememberMe}
+                        onChange={(e) => setRememberMe(e.target.checked)}
+                        className="text-muted small"
+                      />
+                    </Form.Group>
+
                     <Button
                       variant="success"
                       type="submit"
