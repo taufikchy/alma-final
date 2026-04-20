@@ -1,5 +1,8 @@
 export function calculateGestationalAge(lastMenstrualPeriod: string): number {
   const lmp = new Date(lastMenstrualPeriod);
+  if (isNaN(lmp.getTime())) {
+    return 0;
+  }
   const today = new Date();
 
   const diffTime = today.getTime() - lmp.getTime();

@@ -239,7 +239,7 @@ const MidwifeDailyCheckPage = () => {
                   <tr key={check.id}>
                     <td>{index + 1}</td>
                     <td className="fw-bold">{check.patientName}</td>
-                    <td>{calculateGestationalAge(check.lastMenstrualPeriod)} minggu</td>
+                    <td>{check.lastMenstrualPeriod ? `${calculateGestationalAge(check.lastMenstrualPeriod)} Minggu` : 'Data tidak tersedia'}</td>
                     <td>
                       <div>{new Date(check.date).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
                       <small className="text-muted">

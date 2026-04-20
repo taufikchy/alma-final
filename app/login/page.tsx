@@ -13,6 +13,7 @@ const LoginPage = () => {
   const [role, setRole] = useState('SUPER_ADMIN');
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
