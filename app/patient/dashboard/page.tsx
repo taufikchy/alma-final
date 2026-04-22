@@ -263,8 +263,9 @@ const PatientDashboardPage = () => {
   useEffect(() => {
     if (status === 'authenticated' && session?.user?.role === 'PATIENT' && patientDetails?.id) {
       oneSignalService.init().then(async () => {
+        const explicitConsent = localStorage.getItem('notificationsEnabled') === 'true';
         const isEnabled = await oneSignalService.isSubscribed();
-        setNotificationEnabled(isEnabled);
+        setNotificationEnabled(explicitConsent && isEnabled);
         if (isEnabled && patientDetails?.id) {
           await oneSignalService.setExternalUserId(patientDetails.id);
           await oneSignalService.sendTags({
@@ -279,6 +280,7 @@ const PatientDashboardPage = () => {
   const handleEnableNotifications = async () => {
     const granted = await oneSignalService.requestPermission();
     if (granted && patientDetails?.id) {
+      localStorage.setItem('notificationsEnabled', 'true');
       await oneSignalService.setExternalUserId(patientDetails.id);
       await oneSignalService.sendTags({
         patientId: patientDetails.id,
