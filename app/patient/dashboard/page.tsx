@@ -264,14 +264,21 @@ const PatientDashboardPage = () => {
     if (status === 'authenticated' && session?.user?.role === 'PATIENT' && patientDetails?.id) {
       oneSignalService.init().then(async () => {
         const explicitConsent = localStorage.getItem('notificationsEnabled') === 'true';
-        const isEnabled = await oneSignalService.isSubscribed();
-        setNotificationEnabled(explicitConsent && isEnabled);
-        if (isEnabled && patientDetails?.id) {
-          await oneSignalService.setExternalUserId(patientDetails.id);
-          await oneSignalService.sendTags({
-            patientId: patientDetails.id,
-            midwifeId: patientDetails.midwifeId || '',
-          });
+
+        if (explicitConsent) {
+          try {
+            await oneSignalService.setExternalUserId(patientDetails.id);
+            await oneSignalService.sendTags({
+              patientId: patientDetails.id,
+              midwifeId: patientDetails.midwifeId || '',
+            });
+          } catch (e) {
+            console.log('OneSignal sync failed, will retry later');
+          }
+          setNotificationEnabled(true);
+        } else {
+          const isEnabled = await oneSignalService.isSubscribed();
+          setNotificationEnabled(isEnabled);
         }
       });
     }
@@ -286,6 +293,16 @@ const PatientDashboardPage = () => {
         patientId: patientDetails.id,
         midwifeId: patientDetails.midwifeId || '',
       });
+      setNotificationEnabled(true);
+    } else if (Notification.permission === 'granted') {
+      localStorage.setItem('notificationsEnabled', 'true');
+      if (patientDetails?.id) {
+        await oneSignalService.setExternalUserId(patientDetails.id);
+        await oneSignalService.sendTags({
+          patientId: patientDetails.id,
+          midwifeId: patientDetails.midwifeId || '',
+        });
+      }
       setNotificationEnabled(true);
     }
   };
