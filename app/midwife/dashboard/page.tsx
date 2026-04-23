@@ -186,8 +186,8 @@ const MidwifeDashboardPage = () => {
 
   return (
     <Layout>
-      <div style={{ backgroundColor: '#FFF5F8', minHeight: '100vh' }} className="py-4">
-        <Container>
+      <div style={{ backgroundColor: '#FFF5F8', minHeight: '100vh', maxWidth: '98%' }} className="py-4 mx-auto">
+        <Container style={{ maxWidth: '95%' }}>
           {pendingPatients.length > 0 && (
             <Card className="mb-4 border-0 shadow-sm" style={{ borderRadius: '12px', borderLeft: '6px solid #FFC107' }}>
               <Card.Header
@@ -365,19 +365,27 @@ const MidwifeDashboardPage = () => {
                 </div>
               ) : (
                 <div className="table-responsive">
-                  <Table bordered hover className="mb-0 align-middle table-alma" style={{ fontSize: '0.85rem' }}>
+                  <Table bordered hover className="mb-0 align-middle table-alma table-striped" style={{ fontSize: '0.8rem', tableLayout: 'auto' }}>
+                    <style>{`
+                      .table-striped > tbody > tr:nth-of-type(odd) > td {
+                        background-color: #F8F9FA !important;
+                      }
+                      .table-striped > tbody > tr:hover > td {
+                        background-color: #FFE4EC !important;
+                      }
+                    `}</style>
                     <thead>
                       <tr>
-                        <th className="text-center">No</th>
+                        <th className="text-center" style={{ whiteSpace: 'nowrap' }}>No</th>
                         <th className="text-center">Nama</th>
-                        <th className="text-center">Kontak</th>
+                        <th className="text-center" style={{ whiteSpace: 'nowrap' }}>Kontak</th>
                         <th className="text-center">Alamat</th>
                         <th className="text-center">Umur</th>
                         <th className="text-center">Nama Suami</th>
-                        <th className="text-center">HPHT</th>
-                        <th className="text-center">HPL</th>
-                        <th className="text-center">Usia Kehamilan</th>
-                        <th className="text-center">Kehamilan Ke</th>
+                        <th className="text-center" style={{ whiteSpace: 'nowrap' }}>HPHT</th>
+                        <th className="text-center" style={{ whiteSpace: 'nowrap' }}>HPL</th>
+                        <th className="text-center" style={{ whiteSpace: 'nowrap' }}>Usia Hamil</th>
+                        <th className="text-center" style={{ whiteSpace: 'nowrap' }}>Kehamilan Ke</th>
                         <th className="text-center">HB</th>
                         <th className="text-center">Keguguran</th>
                         <th className="text-center">Aksi</th>
@@ -388,22 +396,22 @@ const MidwifeDashboardPage = () => {
                         return (
                           <tr key={patient.id}>
                             <td className="text-center">{index + 1}</td>
-                            <td className="text-start fw-semibold text-alma-green">{patient.name}</td>
-                            <td className="text-start">{patient.phoneNumber}</td>
-                            <td className="text-start">{patient.address}</td>
+                            <td className="text-start fw-semibold text-alma-green" style={{ maxWidth: '150px', wordWrap: 'break-word' }}>{patient.name}</td>
+                            <td className="text-start" style={{ maxWidth: '120px', wordWrap: 'break-word' }}>{patient.phoneNumber}</td>
+                            <td className="text-start" style={{ maxWidth: '180px', wordWrap: 'break-word' }}>{patient.address}</td>
                             <td className="text-center">{patient.age}</td>
-                            <td className="text-start">{patient.husbandName || '-'}</td>
-                            <td className="text-center">
+                            <td className="text-start" style={{ maxWidth: '120px', wordWrap: 'break-word' }}>{patient.husbandName || '-'}</td>
+                            <td className="text-center" style={{ whiteSpace: 'nowrap' }}>
                               {new Date(patient.lastMenstrualPeriod).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
                             </td>
-                            <td className="text-center">
+                            <td className="text-center" style={{ whiteSpace: 'nowrap' }}>
                               {new Date(patient.estimatedDueDate).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}
                             </td>
                             <td className="text-center">
                               <Badge bg="primary" className="badge-alma">{calculateGestationalAge(patient.lastMenstrualPeriod)} mg</Badge>
                             </td>
                             <td className="text-center">{patient.pregnancyOrder}x</td>
-                            <td className="text-center">
+                            <td className="text-center" style={{ maxWidth: '150px', wordWrap: 'break-word' }}>
                               <Badge bg={getHbClassification(patient.lastHemoglobin).variant}>
                                 {patient.lastHemoglobin} g/dL ({getHbClassification(patient.lastHemoglobin).text})
                               </Badge>
@@ -415,15 +423,15 @@ const MidwifeDashboardPage = () => {
                                 <span className="text-success">-</span>
                               )}
                             </td>
-                            <td className="text-center">
-                              <div className="d-flex justify-content-center gap-1">
+                            <td className="text-center" style={{ minWidth: '130px' }}>
+                              <div className="d-flex justify-content-center gap-1 flex-nowrap">
                                 <Link href={`/midwife/patients/${patient.id}`}>
-                                  <Button variant="info" size="sm" className="text-center">
+                                  <Button variant="info" size="sm" className="text-center px-1 py-0" style={{ minWidth: '28px' }}>
                                     <i className="bi bi-eye"></i>
                                   </Button>
                                 </Link>
                                 <Link href={`/midwife/edit-patient/${patient.id}`}>
-                                  <Button variant="warning" size="sm" className="text-center">
+                                  <Button variant="warning" size="sm" className="text-center px-1 py-0" style={{ minWidth: '28px' }}>
                                     <i className="bi bi-pencil"></i>
                                   </Button>
                                 </Link>
@@ -431,7 +439,8 @@ const MidwifeDashboardPage = () => {
                                   variant="secondary"
                                   size="sm"
                                   onClick={() => handleShowDetail(patient)}
-                                  className="text-center"
+                                  className="text-center px-1 py-0"
+                                  style={{ minWidth: '28px' }}
                                 >
                                   <i className="bi bi-clipboard-plus"></i>
                                 </Button>
@@ -439,7 +448,8 @@ const MidwifeDashboardPage = () => {
                                   variant="danger"
                                   size="sm"
                                   onClick={() => handleDeleteClick(patient)}
-                                  className="text-center"
+                                  className="text-center px-1 py-0"
+                                  style={{ minWidth: '28px' }}
                                 >
                                   <i className="bi bi-trash"></i>
                                 </Button>
