@@ -14,10 +14,12 @@ const LoginPage = () => {
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setLoading(true);
 
     const result = await signIn('credentials', {
       redirect: false,
@@ -28,8 +30,8 @@ const LoginPage = () => {
 
     if (result?.error) {
       setError('Login gagal. Periksa username, password, dan peran Anda.');
+      setLoading(false);
     } else {
-      // Tentukan URL tujuan secara dinamis berdasarkan role
       let targetUrl = '/';
       if (role === 'MIDWIFE') {
         targetUrl = '/midwife/dashboard';
@@ -39,8 +41,6 @@ const LoginPage = () => {
         targetUrl = '/superadmin/dashboard';
       }
 
-      // MODIFIKASI DISINI: Memaksa refresh halaman agar session NextAuth nempel di HP
-      // Ini jauh lebih stabil untuk koneksi mobile/Vercel daripada router.push
       window.location.href = targetUrl;
     }
   };
@@ -159,17 +159,27 @@ const LoginPage = () => {
                       variant="success"
                       type="submit"
                       className="btn-alma-primary w-100 py-2"
+                      disabled={loading}
                     >
-                      <i className="bi bi-box-arrow-in-right me-2"></i>
-                      Masuk
+                      {loading ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                          Memproses...
+                        </>
+                      ) : (
+                        <>
+                          <i className="bi bi-box-arrow-in-right me-2"></i>
+                          Masuk
+                        </>
+                      )}
                     </Button>
 
                     <div className="text-center mt-3">
                       <small className="text-muted">
                         Lupa password?
-                        <a href="#" className="text-alma-green text-decoration-none fw-medium ms-1">
+                        <span className="text-alma-green text-decoration-none fw-medium ms-1" style={{ cursor: 'not-allowed', opacity: 0.5 }}>
                           Reset di sini
-                        </a>
+                        </span>
                       </small>
                     </div>
                   </Form>
