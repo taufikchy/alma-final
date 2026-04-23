@@ -48,7 +48,36 @@ const MidwifeDashboardPage = () => {
   const [patientToDelete, setPatientToDelete] = useState<Patient | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [pendingPatients, setPendingPatients] = useState<{ id: string; name: string; phoneNumber: string; address: string; lastMenstrualPeriod: string }[]>([]);
-  const [showPendingList, setShowPendingList] = useState(true);
+  const [showPendingList, setShowPendingList] = useState(false);
+  const [filterCategory, setFilterCategory] = useState('semua');
+  const [filterValue, setFilterValue] = useState('');
+
+  const filteredPatients = patients.filter(patient => {
+    if (!filterValue) return true;
+    
+    const query = filterValue.toLowerCase();
+    if (filterCategory === 'semua') {
+      return (
+        patient.name.toLowerCase().includes(query) ||
+        patient.phoneNumber.toLowerCase().includes(query) ||
+        patient.address.toLowerCase().includes(query) ||
+        patient.husbandName?.toLowerCase().includes(query)
+      );
+    }
+    
+    switch (filterCategory) {
+      case 'nama':
+        return patient.name.toLowerCase().includes(query);
+      case 'kontak':
+        return patient.phoneNumber.toLowerCase().includes(query);
+      case 'alamat':
+        return patient.address.toLowerCase().includes(query);
+      case 'nama_suami':
+        return patient.husbandName?.toLowerCase().includes(query);
+      default:
+        return true;
+    }
+  });
 
   useEffect(() => {
     const fetchPendingPatients = async () => {
@@ -197,7 +226,7 @@ const MidwifeDashboardPage = () => {
               {showPendingList && (
                 <Card.Body className="p-0">
                   <div className="list-group list-group-flush">
-                    {pendingPatients.slice(0, 5).map((patient) => {
+                    {pendingPatients.map((patient) => {
                       const cleanNumber = patient.phoneNumber.replace(/\D/g, '').replace(/^0/, '62');
                       
                       // JURUS PAMUNGKAS: Merakit emoji dari kode matematika murni (Hex)
@@ -235,12 +264,6 @@ const MidwifeDashboardPage = () => {
                         </div>
                       );
                     })}
-                    {pendingPatients.length > 5 && (
-                      <div className="list-group-item text-center text-muted py-3">
-                        <i className="bi bi-three-dots me-2"></i>
-                        ...dan {pendingPatients.length - 5} pasien lainnya
-                      </div>
-                    )}
                   </div>
                 </Card.Body>
               )}
@@ -271,23 +294,74 @@ const MidwifeDashboardPage = () => {
               <i className="bi bi-people-fill fs-4"></i>
               <div>
                 <h5 className="mb-0 fw-bold">Daftar Ibu Hamil Terdaftar</h5>
-                <small className="text-white-50">Total: {patients.length} pasien</small>
+                <small className="text-white-50">Total: {filteredPatients.length} pasien</small>
               </div>
             </div>
             <Card.Body className="p-4">
+              <div className="d-flex gap-2 mb-3">
+                <select
+                  className="form-select"
+                  style={{ maxWidth: '200px' }}
+                  value={filterCategory}
+                  onChange={(e) => {
+                    setFilterCategory(e.target.value);
+                    setFilterValue('');
+                  }}
+                >
+                  <option value="semua">Semua</option>
+                  <option value="nama">Nama</option>
+                  <option value="kontak">Kontak</option>
+                  <option value="alamat">Alamat</option>
+                  <option value="nama_suami">Nama Suami</option>
+                </select>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Ketik untuk mencari..."
+                  value={filterValue}
+                  onChange={(e) => setFilterValue(e.target.value)}
+                />
+                {filterValue && (
+                  <button
+                    className="btn btn-outline-secondary"
+                    type="button"
+                    onClick={() => {
+                      setFilterCategory('semua');
+                      setFilterValue('');
+                    }}
+                  >
+                    <i className="bi bi-x-lg"></i>
+                  </button>
+                )}
+              </div>
               {error && (
                 <Alert variant="danger" className="m-3 rounded-3 text-center">{error}</Alert>
               )}
-              {patients.length === 0 ? (
+              {filteredPatients.length === 0 ? (
                 <div className="empty-state">
                   <i className="bi bi-inbox"></i>
-                  <p className="text-muted mt-2">Belum ada ibu hamil yang terdaftar</p>
-                  <Link href="/midwife/register-patient">
-                    <Button variant="success" size="sm" className="text-center">
-                      <i className="bi bi-plus-circle me-2"></i>
-                      Daftarkan Sekarang
-                    </Button>
-                  </Link>
+                  {filterValue ? (
+                    <>
+                      <p className="text-muted mt-2">Tidak ada pasien yang cocok dengan "{filterValue}"</p>
+                      <Button variant="secondary" size="sm" onClick={() => {
+                        setFilterCategory('semua');
+                        setFilterValue('');
+                      }}>
+                        <i className="bi bi-arrow-left me-2"></i>
+                        Reset Pencarian
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-muted mt-2">Belum ada ibu hamil yang terdaftar</p>
+                      <Link href="/midwife/register-patient">
+                        <Button variant="success" size="sm" className="text-center">
+                          <i className="bi bi-plus-circle me-2"></i>
+                          Daftarkan Sekarang
+                        </Button>
+                      </Link>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="table-responsive">
@@ -310,7 +384,7 @@ const MidwifeDashboardPage = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {patients.map((patient, index) => {
+                      {filteredPatients.map((patient, index) => {
                         return (
                           <tr key={patient.id}>
                             <td className="text-center">{index + 1}</td>
@@ -346,6 +420,11 @@ const MidwifeDashboardPage = () => {
                                 <Link href={`/midwife/patients/${patient.id}`}>
                                   <Button variant="info" size="sm" className="text-center">
                                     <i className="bi bi-eye"></i>
+                                  </Button>
+                                </Link>
+                                <Link href={`/midwife/edit-patient/${patient.id}`}>
+                                  <Button variant="warning" size="sm" className="text-center">
+                                    <i className="bi bi-pencil"></i>
                                   </Button>
                                 </Link>
                                 <Button

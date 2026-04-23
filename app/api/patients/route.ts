@@ -17,7 +17,7 @@ export async function GET(request: Request) {
     if (session.user.role === 'SUPER_ADMIN' && midwifeId) {
       const patients = await prisma.patient.findMany({
         where: { midwifeId },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { createdAt: 'asc' },
       });
       return NextResponse.json(patients, { status: 200 });
     }
@@ -36,7 +36,7 @@ export async function GET(request: Request) {
 
     const patients = await prisma.patient.findMany({
       where: { midwifeId: midwife.id },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: 'asc' },
     });
 
     return NextResponse.json(patients, { status: 200 });
