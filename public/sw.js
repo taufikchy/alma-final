@@ -4,8 +4,8 @@ try {
   console.warn('OneSignal SDK could not be loaded in Service Worker:', e);
 }
 
-const CACHE_NAME = 'alma-v1';
-const SOUND_CACHE = 'alma-sounds-v1';
+// Service Worker Sederhana untuk ALMA
+// Fokus pada Push Notification dan Background Sync agar navigasi PWA stabil
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -15,6 +15,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(clients.claim());
 });
 
+// Handler untuk Push Notification dari OneSignal atau Server
 self.addEventListener('push', (event) => {
   let data = {};
   try {
@@ -45,14 +46,12 @@ self.addEventListener('push', (event) => {
   );
 });
 
+// Handler saat notifikasi di-klik
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  
   const url = event.notification.data?.url || '/patient/dashboard';
 
-  if (event.action === 'close') {
-    return;
-  }
+  if (event.action === 'close') return;
 
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
@@ -63,126 +62,19 @@ self.addEventListener('notificationclick', (event) => {
           return;
         }
       }
-      if (clients.openWindow) {
-        return clients.openWindow(url);
-      }
+      if (clients.openWindow) return clients.openWindow(url);
     })
   );
 });
 
+// Menangani pesan dari aplikasi utama (seperti jadwal alarm saat web terbuka)
 self.addEventListener('message', (event) => {
-  if (event.data && event.data.type === 'SCHEDULE_ALARM') {
-    const { patientId, checkTime, snoozeInterval } = event.data;
-    scheduleAlarm(patientId, checkTime, snoozeInterval);
-  }
-  if (event.data && event.data.type === 'STOP_ALARM') {
-    stopAlarm();
-  }
-  if (event.data && event.data.type === 'SNOOZE_ALARM') {
-    const { snoozeInterval } = event.data;
-    snoozeTime = snoozeInterval || 10 * 60 * 1000;
-    snoozeAlarm();
-  }
-});
-
-let alarmTimeoutId = null;
-let isAlarmActive = false;
-let snoozeTime = 10 * 60 * 1000;
-let checkHour = 19;
-
-function scheduleAlarm(patientId, checkTime = 19, snoozeInterval = 10 * 60 * 1000) {
-  if (alarmTimeoutId) {
-    clearTimeout(alarmTimeoutId);
-    alarmTimeoutId = null;
-  }
-  checkHour = checkTime;
-  snoozeTime = snoozeInterval;
-  isAlarmActive = true;
-  setNextAlarm(patientId);
-}
-
-function setNextAlarm(patientId) {
-  if (!isAlarmActive) return;
-
-  const now = new Date();
-  let targetHour = checkHour;
-  let targetDate = new Date(now);
-
-  if (now.getHours() >= targetHour) {
-    targetDate.setDate(targetDate.getDate() + 1);
-  }
-  targetDate.setHours(targetHour, 0, 0, 0);
-
-  const delay = targetDate.getTime() - now.getTime();
-  console.log(`[SW] Next alarm scheduled for: ${targetDate.toISOString()}, delay: ${delay}ms`);
-
-  alarmTimeoutId = setTimeout(async () => {
-    await triggerAlarm(patientId);
-  }, delay);
-}
-
-async function triggerAlarm(patientId) {
-  if (!isAlarmActive) return;
-
-  console.log('[SW] Alarm triggered!');
-
-  try {
-    await self.registration.showNotification('🔔 ALMA Reminder Minum TTD!', {
-      body: 'Jangan lupa minum Tablet Tambah Darah (TTD) atau MMS ya Bund!',
-      icon: '/logo.png',
-      badge: '/logo.png',
-      tag: 'alma-reminder',
-      requireInteraction: true,
-      vibrate: [200, 100, 200, 100, 200],
-      data: {
-        url: '/patient/dashboard',
-        patientId: patientId,
-        timestamp: Date.now(),
-      },
-    });
-
-    const clientsList = await clients.matchAll({ type: 'window', includeUncontrolled: true });
-    for (const client of clientsList) {
-      client.postMessage({
-        type: 'ALARM_TRIGGERED',
-        patientId: patientId,
-        timestamp: Date.now(),
+  if (event.data && event.data.type === 'ALARM_TRIGGERED') {
+    // Teruskan pesan ke semua window yang terbuka
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clients => {
+      clients.forEach(client => {
+        client.postMessage(event.data);
       });
-    }
-  } catch (error) {
-    console.error('[SW] Error showing notification:', error);
+    });
   }
-
-  setNextAlarm(patientId);
-}
-
-function stopAlarm() {
-  isAlarmActive = false;
-  if (alarmTimeoutId) {
-    clearTimeout(alarmTimeoutId);
-    alarmTimeoutId = null;
-  }
-  console.log('[SW] Alarm stopped');
-}
-
-function snoozeAlarm() {
-  console.log(`[SW] Snoozing alarm for ${snoozeTime / 1000 / 60} minutes`);
-  if (alarmTimeoutId) {
-    clearTimeout(alarmTimeoutId);
-    alarmTimeoutId = null;
-  }
-  if (isAlarmActive) {
-    alarmTimeoutId = setTimeout(() => {
-      triggerAlarm(null);
-    }, snoozeTime);
-  }
-}
-
-self.addEventListener('notificationclose', (event) => {
-  console.log('[SW] Notification closed, will reschedule for snooze');
-  setTimeout(() => {
-    if (isAlarmActive) {
-      setNextAlarm(null);
-    }
-  }, snoozeTime);
 });
