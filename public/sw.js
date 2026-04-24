@@ -1,4 +1,8 @@
-importScripts('https://cdn.onesignal.com/sdks/OneSignalSDKWorker.js');
+try {
+  importScripts('https://cdn.onesignal.com/sdks/OneSignalSDKWorker.js');
+} catch (e) {
+  console.warn('OneSignal SDK could not be loaded in Service Worker:', e);
+}
 
 const CACHE_NAME = 'alma-v1';
 const SOUND_CACHE = 'alma-sounds-v1';
