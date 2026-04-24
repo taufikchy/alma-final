@@ -85,7 +85,11 @@ class OneSignalService {
         resolve();
       };
       script.onerror = (error) => {
-        console.error('[OneSignal] Failed to load SDK:', error);
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[OneSignal] Failed to load SDK in development. This is normal if you have an ad-blocker or are not using HTTPS.', error);
+        } else {
+          console.error('[OneSignal] Failed to load SDK:', error);
+        }
         resolve();
       };
 
@@ -99,7 +103,11 @@ class OneSignalService {
         } else if (attempts < maxAttempts) {
           setTimeout(tryInit, 1000);
         } else {
-          console.error('[OneSignal] Failed to initialize after', maxAttempts, 'attempts');
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('[OneSignal] Initialization skipped in development after', maxAttempts, 'attempts.');
+          } else {
+            console.error('[OneSignal] Failed to initialize after', maxAttempts, 'attempts');
+          }
           resolve();
         }
       };
@@ -148,7 +156,11 @@ class OneSignalService {
     await this.init();
 
     if (!window.OneSignal) {
-      console.error('[OneSignal] SDK not loaded');
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('[OneSignal] SDK not loaded. Notification permission request skipped in development.');
+      } else {
+        console.error('[OneSignal] SDK not loaded');
+      }
       return false;
     }
 

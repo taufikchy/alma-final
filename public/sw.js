@@ -1,3 +1,5 @@
+importScripts('https://cdn.onesignal.com/sdks/OneSignalSDKWorker.js');
+
 const CACHE_NAME = 'alma-v1';
 const SOUND_CACHE = 'alma-sounds-v1';
 
@@ -10,19 +12,28 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : {};
-  const title = data.title || '🔔 ALMA Reminder';
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch (e) {
+    data = { body: event.data ? event.data.text() : '' };
+  }
+
+  const title = data.title || '🔔 ALMA Reminder Minum TTD';
   const options = {
     body: data.body || 'Jangan lupa minum Tablet Tambah Darah (TTD) atau MMS ya Bund!',
     icon: '/logo.png',
     badge: '/logo.png',
     tag: 'alma-reminder',
     requireInteraction: true,
-    vibrate: [200, 100, 200, 100, 200],
-    sound: '/notification.mp3',
+    vibrate: [500, 110, 500, 110, 450, 110, 200, 110, 170, 40, 450, 110, 200, 110, 170, 40],
     data: {
       url: data.url || '/patient/dashboard',
     },
+    actions: [
+      { action: 'open', title: 'Buka ALMA' },
+      { action: 'close', title: 'Tutup' }
+    ]
   };
 
   event.waitUntil(
@@ -32,7 +43,13 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  
   const url = event.notification.data?.url || '/patient/dashboard';
+
+  if (event.action === 'close') {
+    return;
+  }
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       for (const client of clientList) {

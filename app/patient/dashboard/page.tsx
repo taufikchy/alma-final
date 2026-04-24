@@ -62,6 +62,7 @@ const PatientDashboardPage = () => {
   const [alreadyCheckedToday, setAlreadyCheckedToday] = useState(false);
   const [isAlarmPlaying, setIsAlarmPlaying] = useState(false);
   const [notificationEnabled, setNotificationEnabled] = useState(false);
+  const [loadingEnable, setLoadingEnable] = useState(false);
   const hasPlayedRef = useRef(false);
 
   const checkTodaySubmission = useCallback((checks?: { date: string }[]) => {
@@ -160,19 +161,26 @@ const PatientDashboardPage = () => {
     if (isPlayingRef.current) return;
 
     try {
-      audioRef.current = new Audio('/notification.mp3');
-      audioRef.current.loop = true;
+      if (!audioRef.current) {
+        audioRef.current = new Audio('/notification.mp3');
+        audioRef.current.loop = true;
+      }
+      
       playPromiseRef.current = audioRef.current.play();
       playPromiseRef.current.then(() => {
         isPlayingRef.current = true;
         setIsAlarmPlaying(true);
       }).catch(e => {
-        console.error('Audio play error:', e);
+        if (e.name === 'NotAllowedError') {
+          console.warn('[Audio] Autoplay blocked. User needs to interact with the page first.');
+        } else {
+          console.error('[Audio] Play error:', e);
+        }
         isPlayingRef.current = false;
         setIsAlarmPlaying(false);
       });
     } catch (e) {
-      console.error('Audio play error:', e);
+      console.error('[Audio] Init error:', e);
       isPlayingRef.current = false;
       setIsAlarmPlaying(false);
     }
@@ -261,6 +269,16 @@ const PatientDashboardPage = () => {
   }, [session, status, patientDetails]);
 
   useEffect(() => {
+    if (patientDetails?.id) {
+      const storageKey = `notificationsEnabled_${patientDetails.id}`;
+      const isEnabled = localStorage.getItem(storageKey) === 'true';
+      if (isEnabled) {
+        setNotificationEnabled(true);
+      }
+    }
+  }, [patientDetails?.id]);
+
+  useEffect(() => {
     if (status === 'authenticated' && session?.user?.role === 'PATIENT' && patientDetails?.id) {
       oneSignalService.init().then(async () => {
         const storageKey = `notificationsEnabled_${patientDetails.id}`;
@@ -286,26 +304,62 @@ const PatientDashboardPage = () => {
   }, [session, status, patientDetails]);
 
   const handleEnableNotifications = async () => {
+    if (loadingEnable) return;
+    
+    setLoadingEnable(true);
     const storageKey = `notificationsEnabled_${patientDetails?.id}`;
-    const granted = await oneSignalService.requestPermission();
-    if (granted && patientDetails?.id) {
-      localStorage.setItem(storageKey, 'true');
-      await oneSignalService.setExternalUserId(patientDetails.id);
-      await oneSignalService.sendTags({
-        patientId: patientDetails.id,
-        midwifeId: patientDetails.midwifeId || '',
-      });
-      setNotificationEnabled(true);
-    } else if (Notification.permission === 'granted') {
-      localStorage.setItem(storageKey, 'true');
-      if (patientDetails?.id) {
+    console.log('[Notifications] Attempting to enable...', { storageKey });
+    
+    try {
+      // Buat promise timeout agar tidak menunggu OneSignal terlalu lama di lokal
+      const permissionPromise = oneSignalService.requestPermission();
+      const timeoutPromise = new Promise<boolean>((resolve) => 
+        setTimeout(() => resolve(false), 3000)
+      );
+
+      const granted = await Promise.race([permissionPromise, timeoutPromise]);
+      console.log('[Notifications] OneSignal permission result:', granted);
+      
+      if (granted && patientDetails?.id) {
+        localStorage.setItem(storageKey, 'true');
         await oneSignalService.setExternalUserId(patientDetails.id);
         await oneSignalService.sendTags({
           patientId: patientDetails.id,
           midwifeId: patientDetails.midwifeId || '',
         });
+        setNotificationEnabled(true);
+        setLoadingEnable(false);
+        return;
       }
-      setNotificationEnabled(true);
+
+      // Fallback: Jika OneSignal gagal/timeout (misal di localhost), coba gunakan permission native browser
+      console.log('[Notifications] OneSignal failed or timeout, trying native fallback...');
+      
+      if (Notification.permission === 'granted') {
+        localStorage.setItem(storageKey, 'true');
+        setNotificationEnabled(true);
+      } else if (Notification.permission !== 'denied') {
+        const permission = await Notification.requestPermission();
+        if (permission === 'granted') {
+          localStorage.setItem(storageKey, 'true');
+          setNotificationEnabled(true);
+        }
+      }
+
+      // Khusus di development, jika semua di atas gagal, tetap izinkan aktifkan untuk testing UI
+      if (!notificationEnabled && process.env.NODE_ENV === 'development') {
+        console.log('[Dev] Memaksa status enabled untuk testing UI lokal');
+        localStorage.setItem(storageKey, 'true');
+        setNotificationEnabled(true);
+      }
+    } catch (error) {
+      console.error('[Notifications] Error enabling:', error);
+      if (process.env.NODE_ENV === 'development') {
+        localStorage.setItem(storageKey, 'true');
+        setNotificationEnabled(true);
+      }
+    } finally {
+      setLoadingEnable(false);
     }
   };
 
@@ -391,6 +445,23 @@ const PatientDashboardPage = () => {
       hasPlayedRef.current = false;
     };
   }, [alreadyCheckedToday, showBrowserNotification, session]);
+
+  useEffect(() => {
+    const handleFirstInteraction = () => {
+      if (showReminder && !isPlayingRef.current) {
+        console.log('[Audio] User interacted, attempting to play sound...');
+        playNotificationSound();
+      }
+    };
+
+    window.addEventListener('click', handleFirstInteraction);
+    window.addEventListener('touchstart', handleFirstInteraction);
+
+    return () => {
+      window.removeEventListener('click', handleFirstInteraction);
+      window.removeEventListener('touchstart', handleFirstInteraction);
+    };
+  }, [showReminder, playNotificationSound]);
 
   if (status === 'loading' || loadingPatientDetails) {
     return (
@@ -563,9 +634,19 @@ const PatientDashboardPage = () => {
                   variant="warning"
                   className="fw-bold"
                   onClick={handleEnableNotifications}
+                  disabled={loadingEnable}
                 >
-                  <i className="bi bi-bell me-2"></i>
-                  Aktifkan
+                  {loadingEnable ? (
+                    <>
+                      <Spinner size="sm" animation="border" className="me-2" />
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <i className="bi bi-bell me-2"></i>
+                      Aktifkan
+                    </>
+                  )}
                 </Button>
               </Card.Body>
             </Card>

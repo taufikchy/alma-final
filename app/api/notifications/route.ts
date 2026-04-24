@@ -27,6 +27,40 @@ export async function POST(request: Request) {
       },
     });
 
+    // Send push notification via OneSignal
+    try {
+      const onesignalAppId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID;
+      const onesignalApiKey = process.env.ONESIGNAL_REST_API_KEY;
+
+      if (onesignalAppId && onesignalApiKey) {
+        console.log('[OneSignal] Sending push notification to patient:', patientId);
+        const response = await fetch('https://onesignal.com/api/v1/notifications', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Authorization': `Basic ${onesignalApiKey}`,
+          },
+          body: JSON.stringify({
+            app_id: onesignalAppId,
+            include_external_user_ids: [patientId],
+            headings: { en: title || '🔔 ALMA Reminder' },
+            contents: { en: message || 'Jangan lupa minum Tablet Tambah Darah (TTD) hari ini ya Bund!' },
+            url: `${process.env.NEXTAUTH_URL}/patient/dashboard`,
+            // Tambahkan getaran kuat untuk mobile
+            android_accent_color: 'FF4CAF50',
+            priority: 10, // High priority
+          }),
+        });
+        
+        const responseData = await response.json();
+        console.log('[OneSignal] Response:', responseData);
+      } else {
+        console.warn('[OneSignal] Missing App ID or API Key in environment variables');
+      }
+    } catch (osError) {
+      console.error('OneSignal Push Error:', osError);
+    }
+
     return NextResponse.json({
       success: true,
       notification,
