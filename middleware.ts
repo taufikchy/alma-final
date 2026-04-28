@@ -7,6 +7,18 @@ const publicPaths = ['/', '/login', '/api/auth', '/favicon.ico', '/logo.png', '/
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  if (pathname.startsWith('/api/notifications/repeat')) {
+    const authHeader = request.headers.get('authorization');
+    const isVercelCron = request.headers.get('x-vercel-cron') === '1';
+    const cronSecret = process.env.CRON_SECRET;
+
+    if (isVercelCron || (cronSecret && authHeader === `Bearer ${cronSecret}`)) {
+      return NextResponse.next();
+    }
+
+    return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
+  }
+
   // Izinkan akses ke path publik dan file statis tanpa token
   if (
     publicPaths.some(path => pathname === path || pathname.startsWith(path)) ||
