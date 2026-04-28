@@ -153,9 +153,26 @@ const PatientDashboardPage = () => {
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const intervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const vibrationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isPlayingRef = useRef(false);
   const playPromiseRef = useRef<Promise<void> | null>(null);
   const alarmDismissedByUserRef = useRef(false);
+
+  const triggerForegroundVibration = useCallback(() => {
+    if (typeof navigator === 'undefined' || typeof navigator.vibrate !== 'function') return;
+    navigator.vibrate([1200, 250, 1200, 250, 1200, 600, 1800, 400, 1200]);
+  }, []);
+
+  const stopForegroundVibration = useCallback(() => {
+    if (vibrationIntervalRef.current) {
+      clearInterval(vibrationIntervalRef.current);
+      vibrationIntervalRef.current = null;
+    }
+
+    if (typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function') {
+      navigator.vibrate(0);
+    }
+  }, []);
 
   const playNotificationSound = useCallback(() => {
     if (isPlayingRef.current) return;
@@ -189,6 +206,7 @@ const PatientDashboardPage = () => {
   const stopNotificationSound = useCallback(() => {
     isPlayingRef.current = false;
     setIsAlarmPlaying(false);
+    stopForegroundVibration();
 
     if (intervalRef.current) {
       clearTimeout(intervalRef.current);
@@ -217,7 +235,7 @@ const PatientDashboardPage = () => {
     } catch (e) {
       console.error('Error stopping audio:', e);
     }
-  }, []);
+  }, [stopForegroundVibration]);
 
   const showBrowserNotification = useCallback(() => {
     if (!('Notification' in window)) return;
@@ -226,8 +244,15 @@ const PatientDashboardPage = () => {
     const options = {
       body: 'Jangan lupa minum Tablet Tambah Darah (TTD) atau MMS hari ini ya Bund!',
       icon: '/favicon.ico',
+      badge: '/logo.png',
       tag: 'alma-reminder',
       requireInteraction: true,
+      renotify: true,
+      silent: false,
+      vibrate: [1200, 250, 1200, 250, 1200, 600, 1800, 400, 1200],
+      data: {
+        url: '/patient/dashboard',
+      },
     };
 
     if (Notification.permission === 'granted') {
@@ -258,13 +283,29 @@ const PatientDashboardPage = () => {
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').then((registration) => {
+      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then((registration) => {
         console.log('Service Worker registered with scope:', registration.scope);
       }).catch((error) => {
         console.error('Service Worker registration failed:', error);
       });
     }
   }, []);
+
+  useEffect(() => {
+    if (!showReminder || alreadyCheckedToday) {
+      stopForegroundVibration();
+      return;
+    }
+
+    triggerForegroundVibration();
+    vibrationIntervalRef.current = setInterval(() => {
+      triggerForegroundVibration();
+    }, 5000);
+
+    return () => {
+      stopForegroundVibration();
+    };
+  }, [alreadyCheckedToday, showReminder, stopForegroundVibration, triggerForegroundVibration]);
 
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -535,27 +576,8 @@ const PatientDashboardPage = () => {
                     type="button"
                     className="btn btn-lg btn-danger fw-bold"
                     onClick={() => {
-                      setIsAlarmPlaying(false);
                       setShowReminder(false);
-                      if (intervalRef.current) {
-                        clearTimeout(intervalRef.current);
-                        intervalRef.current = null;
-                      }
-                      const audio = audioRef.current;
-                      const currentPromise = playPromiseRef.current;
-                      const doPause = () => {
-                        if (audio) {
-                          audio.pause();
-                          audio.currentTime = 0;
-                        }
-                      };
-                      if (currentPromise) {
-                        currentPromise.then(doPause).catch(doPause);
-                      } else {
-                        doPause();
-                      }
-                      audioRef.current = null;
-                      playPromiseRef.current = null;
+                      stopNotificationSound();
                       alarmDismissedByUserRef.current = true;
 
                       if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
@@ -583,27 +605,8 @@ const PatientDashboardPage = () => {
                   type="button"
                   className="btn-close btn-close-lg"
                   onClick={() => {
-                    setIsAlarmPlaying(false);
                     setShowReminder(false);
-                    if (intervalRef.current) {
-                      clearTimeout(intervalRef.current);
-                      intervalRef.current = null;
-                    }
-                    const audio = audioRef.current;
-                    const currentPromise = playPromiseRef.current;
-                    const doPause = () => {
-                      if (audio) {
-                        audio.pause();
-                        audio.currentTime = 0;
-                      }
-                    };
-                    if (currentPromise) {
-                      currentPromise.then(doPause).catch(doPause);
-                    } else {
-                      doPause();
-                    }
-                    audioRef.current = null;
-                    playPromiseRef.current = null;
+                    stopNotificationSound();
                     alarmDismissedByUserRef.current = true;
 
                     setTimeout(() => {

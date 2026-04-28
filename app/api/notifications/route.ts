@@ -3,6 +3,10 @@ import prisma from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
+const DEFAULT_REMINDER_TITLE = 'ALMA - Reminder Minum TTD';
+const DEFAULT_REMINDER_MESSAGE = 'Jangan lupa minum Tablet Tambah Darah (TTD) hari ini ya Bund!';
+const DEFAULT_VIBRATION_PATTERN = [1200, 250, 1200, 250, 1200, 600, 1800, 400, 1200];
+
 export async function POST(request: Request) {
   try {
     const { patientId, title, message } = await request.json();
@@ -31,6 +35,10 @@ export async function POST(request: Request) {
     try {
       const onesignalAppId = process.env.NEXT_PUBLIC_ONESIGNAL_APP_ID;
       const onesignalApiKey = process.env.ONESIGNAL_REST_API_KEY;
+      const baseUrl = process.env.NEXTAUTH_URL || new URL(request.url).origin;
+      const notificationTitle = title || DEFAULT_REMINDER_TITLE;
+      const notificationMessage = message || DEFAULT_REMINDER_MESSAGE;
+      const targetUrl = `${baseUrl}/patient/dashboard`;
 
       if (onesignalAppId && onesignalApiKey) {
         console.log('[OneSignal] Sending push notification to patient:', patientId);
@@ -43,12 +51,29 @@ export async function POST(request: Request) {
           body: JSON.stringify({
             app_id: onesignalAppId,
             include_external_user_ids: [patientId],
-            headings: { en: title || '🔔 ALMA Reminder' },
-            contents: { en: message || 'Jangan lupa minum Tablet Tambah Darah (TTD) hari ini ya Bund!' },
-            url: `${process.env.NEXTAUTH_URL}/patient/dashboard`,
-            // Tambahkan getaran kuat untuk mobile
+            headings: { en: notificationTitle },
+            contents: { en: notificationMessage },
+            url: targetUrl,
+            web_url: targetUrl,
+            chrome_web_icon: `${baseUrl}/logo.png`,
+            chrome_web_badge: `${baseUrl}/logo.png`,
+            web_buttons: [
+              {
+                id: 'open-alma',
+                text: 'Buka ALMA',
+                url: targetUrl,
+              },
+            ],
+            data: {
+              url: '/patient/dashboard',
+              title: notificationTitle,
+              body: notificationMessage,
+              tag: 'alma-reminder',
+              vibrate: DEFAULT_VIBRATION_PATTERN,
+            },
             android_accent_color: 'FF4CAF50',
-            priority: 10, // High priority
+            priority: 10,
+            ttl: 3600,
           }),
         });
         
