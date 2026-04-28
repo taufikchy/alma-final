@@ -201,17 +201,17 @@ class OneSignalService {
 
   async removeExternalUserId(): Promise<void> {
     if (typeof window === 'undefined' || !window.OneSignal) return;
-    return window.OneSignal.removeExternalUserId();
+    await window.OneSignal.removeExternalUserId();
   }
 
   async sendTag(key: string, value: string): Promise<void> {
     if (typeof window === 'undefined' || !window.OneSignal) return;
-    return window.OneSignal.sendTag(key, value);
+    await window.OneSignal.sendTag(key, value);
   }
 
   async sendTags(tags: Record<string, string>): Promise<void> {
     if (typeof window === 'undefined' || !window.OneSignal) return;
-    return window.OneSignal.sendTags(tags);
+    await window.OneSignal.sendTags(tags);
   }
 
   onNotificationOpened(callback: (notification: unknown) => void): void {

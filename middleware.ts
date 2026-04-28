@@ -59,7 +59,6 @@ export async function middleware(request: NextRequest) {
       if (pathname.startsWith('/api/patients') && token.role !== 'MIDWIFE' && token.role !== 'SUPER_ADMIN') {
         return NextResponse.json({ message: 'Forbidden' }, { status: 403 });
       }
-      // ... (sisanya tetap sama atau bisa disederhanakan)
     }
 
     return NextResponse.next();

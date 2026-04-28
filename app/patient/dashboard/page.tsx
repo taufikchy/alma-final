@@ -220,22 +220,37 @@ const PatientDashboardPage = () => {
   }, []);
 
   const showBrowserNotification = useCallback(() => {
-    if ('Notification' in window && Notification.permission === 'granted') {
-      new Notification('🔔 ALMA - Reminder Minum TTD', {
-        body: 'Jangan lupa minum Tablet Tambah Darah (TTD) atau MMS hari ini ya Bund!',
-        icon: '/favicon.ico',
-        tag: 'alma-reminder',
-        requireInteraction: true,
-      });
-    } else if ('Notification' in window && Notification.permission !== 'denied') {
+    if (!('Notification' in window)) return;
+
+    const title = '🔔 ALMA - Reminder Minum TTD';
+    const options = {
+      body: 'Jangan lupa minum Tablet Tambah Darah (TTD) atau MMS hari ini ya Bund!',
+      icon: '/favicon.ico',
+      tag: 'alma-reminder',
+      requireInteraction: true,
+    };
+
+    if (Notification.permission === 'granted') {
+      // Gunakan Service Worker jika tersedia (lebih stabil di mobile/PWA)
+      if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.ready.then(registration => {
+          registration.showNotification(title, options);
+        }).catch(err => {
+          console.error('[Notification] SW Error:', err);
+          // Fallback ke constructor native jika SW gagal (tapi ini bisa crash di mobile)
+          try { new Notification(title, options); } catch (e) {}
+        });
+      } else {
+        try { new Notification(title, options); } catch (e) {}
+      }
+    } else if (Notification.permission !== 'denied') {
       Notification.requestPermission().then((permission) => {
         if (permission === 'granted') {
-          new Notification('🔔 ALMA - Reminder Minum TTD', {
-            body: 'Jangan lupa minum Tablet Tambah Darah (TTD) atau MMS hari ini ya Bund!',
-            icon: '/favicon.ico',
-            tag: 'alma-reminder',
-            requireInteraction: true,
-          });
+          if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+            navigator.serviceWorker.ready.then(reg => reg.showNotification(title, options));
+          } else {
+            try { new Notification(title, options); } catch (e) {}
+          }
         }
       });
     }
@@ -396,7 +411,7 @@ const PatientDashboardPage = () => {
   const checkAndNotifyRef = useRef<() => void>(() => {});
 
   useEffect(() => {
-    const performNotify = () => {
+    const performNotify = async () => {
       if (!session || session.user?.role !== 'PATIENT') return;
       if (hasPlayedRef.current) return;
       if (alreadyCheckedToday) return;
@@ -406,6 +421,7 @@ const PatientDashboardPage = () => {
       const currentHour = now.getHours();
 
       if (currentHour >= 19) {
+        console.log('[Alarm] Triggering reminder at', now.toLocaleTimeString());
         setShowReminder(true);
         playNotificationSound();
         showBrowserNotification();
