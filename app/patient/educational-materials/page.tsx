@@ -13,6 +13,7 @@ interface EducationalMaterial {
   content: string;
   videoUrl1?: string;
   videoUrl2?: string;
+  videoUrl3?: string;
 }
 
 const EducationalMaterialsPage = () => {
@@ -103,7 +104,7 @@ const EducationalMaterialsPage = () => {
                     <Accordion.Body>
                       <div className="mb-3" dangerouslySetInnerHTML={{ __html: material.content }} />
 
-                      {(material.videoUrl1 || material.videoUrl2) && (
+                      {(material.videoUrl1 || material.videoUrl2 || material.videoUrl3) && (
                         <div className="mt-4">
                           <Badge bg="info" className="mb-3 px-3 py-2" style={{ fontSize: '0.9rem' }}>
                             <i className="bi bi-play-circle me-1"></i>
@@ -111,7 +112,7 @@ const EducationalMaterialsPage = () => {
                           </Badge>
                           <Row>
                             {material.videoUrl1 && (
-                              <Col md={6} className="mb-3">
+                              <Col md={4} className="mb-3">
                                 <div className="ratio ratio-16x9 rounded overflow-hidden shadow-sm">
                                   <iframe
                                     src={`https://www.youtube.com/embed/${material.videoUrl1}`}
@@ -122,12 +123,23 @@ const EducationalMaterialsPage = () => {
                               </Col>
                             )}
                             {material.videoUrl2 && (
-                              <Col md={6} className="mb-3">
+                              <Col md={4} className="mb-3">
                                 <div className="ratio ratio-16x9 rounded overflow-hidden shadow-sm">
                                   <iframe
                                     src={`https://www.youtube.com/embed/${material.videoUrl2}`}
                                     allowFullScreen
                                     title="Video Edukasi 2"
+                                  ></iframe>
+                                </div>
+                              </Col>
+                            )}
+                            {material.videoUrl3 && (
+                              <Col md={4} className="mb-3">
+                                <div className="ratio ratio-16x9 rounded overflow-hidden shadow-sm">
+                                  <iframe
+                                    src={`https://www.youtube.com/embed/${material.videoUrl3}`}
+                                    allowFullScreen
+                                    title="Video Edukasi 3"
                                   ></iframe>
                                 </div>
                               </Col>
